@@ -8,7 +8,7 @@ def getArgs():
         dest="irs_file",
         default=None,
         help="Ficheiro IRS .xml pre-preenchido gerado na plataforma IRS da AT.",
-        required=True,
+        required=False,
     )
 
     parser.add_argument(

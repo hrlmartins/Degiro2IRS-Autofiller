@@ -26,10 +26,10 @@ def createIRSEntry(irs_isin_df, nline_offset, amount, trans_cost, buy_row, sell_
     codigo = IRS_CODIGO
     ano_realizacao = sell_row["date"].split('-')[-1]
     mes_realizacao = sell_row["date"].split('-')[-2]
-    valor_realizacao = amount*sell_row["price"]
+    valor_realizacao = (amount * sell_row["price"]) / sell_row["exch_rate"]
     ano_aquisicao = buy_row["date"].split('-')[-1]
     mes_aquisicao = buy_row["date"].split('-')[-2]
-    valor_aquisicao = amount*buy_row["price"]
+    valor_aquisicao = (amount * buy_row["price"]) / buy_row["exch_rate"]
     despesas_encargo = trans_cost
 
     new_row = {
@@ -59,7 +59,7 @@ def main():
 
     #main----------------------------------------------------------
     org_df = pd.read_csv(transactions_file)
-    org_df.rename(columns={'Data': 'date', 'Hora': 'hour', 'Valor': 'value', 'Custos de transação': 'trans_cost', 'Quantidade': 'amount', 'Preços': 'price'}, inplace=True)
+    org_df.rename(columns={'Data': 'date', 'Hora': 'hour', 'Produto': 'product', 'Valor': 'value', 'Taxa de Câmbio': 'exch_rate', 'Custos de transação': 'trans_cost', 'Quantidade': 'amount', 'Preços': 'price'}, inplace=True)
 
     #Create a timestamp column, instead of relying on 'date' and 'hour' for temporal determination.
     def calcNewTimestampColumn(row):
@@ -79,6 +79,9 @@ def main():
 
     #Replace NaNs with 0 in trans_cost column
     org_df["trans_cost"].fillna(0, inplace=True)
+    #Default exch_rate to 1. It's the neutral factor when factoring in the exchange rate
+    org_df["exch_rate"].fillna(1, inplace=True)
+
     #org_df.to_csv("sorted.csv", sep=',')
 
     #Seperate dataframe into a list of dataframes oraganized by unique ISINs
@@ -150,7 +153,10 @@ def main():
             ValorRealizacao += row["ValorRealizacao"]
             ValorAquisicao += row["ValorAquisicao"]
             commissions += row["DespesasEncargos"]
-        print("%s | ValorRealizacao:%.2f, ValorAquisicao:%.2f, gains:%.2f, commissions:%.2f" % (isin_df.iloc[0]['ISIN'], ValorRealizacao, ValorAquisicao, ValorRealizacao-ValorAquisicao, commissions))
+        
+        ## If there were sales in requested IRS YEAR show report. Otherwise don't
+        if irs_isin_list:
+            print("%s %s\t| ValorRealizacao:%.2f, ValorAquisicao:%.2f, gains:%.2f, commissions:%.2f" % (isin_df.iloc[0]['ISIN'], isin_df.iloc[0]['product'], ValorRealizacao, ValorAquisicao, ValorRealizacao-ValorAquisicao, commissions))
 
         #Append this product's irs_isin list into global irs list
         irs_list += irs_isin_list
